@@ -13,7 +13,7 @@ package eslgo
 import (
 	"context"
 	"errors"
-	"github.com/percipia/eslgo/command"
+	"github.com/zenthangplus/eslgo/command"
 	"net"
 	"time"
 )

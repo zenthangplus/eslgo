@@ -14,8 +14,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/percipia/eslgo/command"
-	"github.com/percipia/eslgo/command/call"
+	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/command/call"
 	"io"
 	"log"
 )

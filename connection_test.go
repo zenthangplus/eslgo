@@ -13,8 +13,8 @@ package eslgo
 import (
 	"bufio"
 	"context"
-	"github.com/percipia/eslgo/command"
 	"github.com/stretchr/testify/assert"
+	"github.com/zenthangplus/eslgo/command"
 	"net"
 	"sync"
 	"testing"
