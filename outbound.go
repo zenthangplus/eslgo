@@ -97,7 +97,7 @@ func (c *Conn) dummyLoop() {
 	case <-c.responseChannels[TypeDisconnect]:
 		c.logger.Info("Disconnect outbound connection", c.conn.RemoteAddr())
 		if c.closeDelay >= 0 {
-			time.AfterFunc(c.closeDelay*time.Second, func() {
+			time.AfterFunc(c.closeDelay, func() {
 				c.Close()
 			})
 		}
