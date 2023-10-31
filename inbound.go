@@ -13,8 +13,12 @@ package eslgo
 import (
 	"context"
 	"fmt"
+	websocketCore "github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 	"github.com/zenthangplus/eslgo/command"
 	"github.com/zenthangplus/eslgo/resource"
+	"github.com/zenthangplus/eslgo/tcpsocket"
+	"github.com/zenthangplus/eslgo/websocket"
 	"net"
 	"time"
 )
@@ -28,7 +32,7 @@ type InboundOptions struct {
 	AuthTimeout  time.Duration // How long to wait for authentication to complete
 }
 
-// DefaultOutboundOptions - The default options used for creating the inbound connection
+// DefaultInboundOptions - The default options used for creating the inbound connection
 var DefaultInboundOptions = InboundOptions{
 	Options:     DefaultOptions,
 	Network:     "tcp",
@@ -45,17 +49,45 @@ func Dial(address, password string, onDisconnect func()) (*Conn, error) {
 }
 
 // Dial - Connects to FreeSWITCH ESL on the address with the provided options. Returns the connection and any errors encountered
-func (opts InboundOptions) Dial(address string) (*Conn, error) {
+func (opts InboundOptions) Dial(addressOrUrl string) (*Conn, error) {
+	switch opts.Protocol {
+	case Websocket:
+		return opts.DialWebsocket(addressOrUrl)
+	case Tcpsocket:
+		return opts.DialTcpsocket(addressOrUrl)
+	default:
+		return nil, fmt.Errorf("protocol %s not supported", opts.Protocol)
+	}
+}
+
+// DialWebsocket - Connects to FreeSWITCH ESL on the address with the provided options. Returns the connection and any errors encountered
+func (opts InboundOptions) DialWebsocket(url string) (*Conn, error) {
+	c, _, err := websocketCore.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		return nil, errors.WithMessage(err, "dial websocket connection error")
+	}
+	wsConn := websocket.NewConn(c)
+	connection := newConnection(wsConn, false, opts.Options)
+	return opts.handleConnection(connection)
+}
+
+// DialTcpsocket - Connects to FreeSWITCH ESL on the address with the provided options. Returns the connection and any errors encountered
+func (opts InboundOptions) DialTcpsocket(address string) (*Conn, error) {
 	c, err := net.Dial(opts.Network, address)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "dial tcpsocket connection error")
 	}
-	connection := newConnection(c, false, opts.Options)
+	tcpConn := tcpsocket.NewConn(c)
+	connection := newConnection(tcpConn, false, opts.Options)
+	return opts.handleConnection(connection)
+}
 
+// handleConnection ...
+func (opts InboundOptions) handleConnection(connection *Conn) (*Conn, error) {
 	// First auth
 	<-connection.responseChannels[resource.TypeAuthRequest]
 	authCtx, cancel := context.WithTimeout(connection.runningContext, opts.AuthTimeout)
-	err = connection.doAuth(authCtx, command.Auth{Password: opts.Password})
+	err := connection.doAuth(authCtx, command.Auth{Password: opts.Password})
 	cancel()
 	if err != nil {
 		// Try to gracefully disconnect, we have the wrong password.
@@ -65,7 +97,7 @@ func (opts InboundOptions) Dial(address string) (*Conn, error) {
 		}
 		return nil, err
 	} else {
-		connection.logger.Info("Successfully authenticated %s\n", connection.conn.RemoteAddr())
+		connection.logger.Info("Successfully authenticated %s", connection.conn.RemoteAddr())
 	}
 
 	// Inbound only handlers
@@ -96,12 +128,12 @@ func (c *Conn) authLoop(auth command.Auth, authTimeout time.Duration) {
 			err := c.doAuth(authCtx, auth)
 			cancel()
 			if err != nil {
-				c.logger.Warn("Failed to auth %e\n", err)
+				c.logger.Warn("Failed to auth: %s", err)
 				// Close the connection, we have the wrong password
 				c.ExitAndClose()
 				return
 			} else {
-				c.logger.Info("Successfully authenticated %s\n", c.conn.RemoteAddr())
+				c.logger.Info("Successfully authenticated %s", c.conn.RemoteAddr())
 			}
 		case <-c.runningContext.Done():
 			return

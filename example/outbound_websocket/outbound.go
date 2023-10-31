@@ -1,13 +1,3 @@
-/*
- * Copyright (c) 2020 Percipia
- *
- * This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at https://mozilla.org/MPL/2.0/.
- *
- * Contributor(s):
- * Andrew Querol <aquerol@percipia.com>
- */
 package main
 
 import (
@@ -16,11 +6,23 @@ import (
 	"github.com/zenthangplus/eslgo"
 	"github.com/zenthangplus/eslgo/resource"
 	"log"
+	"time"
 )
 
 func main() {
+	opts := eslgo.OutboundOptions{
+		Options: eslgo.Options{
+			Context:     context.Background(),
+			Logger:      eslgo.NormalLogger{},
+			ExitTimeout: 5 * time.Second,
+			Protocol:    eslgo.Websocket,
+		},
+		Network:         "tcp",
+		ConnectTimeout:  5 * time.Second,
+		ConnectionDelay: 25 * time.Millisecond,
+	}
 	// Start listening, this is a blocking function
-	log.Fatalln(eslgo.ListenAndServe(":8084", handleConnection))
+	log.Fatalln(opts.ListenAndServe(":8085", handleConnection))
 }
 
 func handleConnection(ctx context.Context, conn *eslgo.Conn, response *resource.RawResponse) {

@@ -13,6 +13,7 @@ package eslgo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/zenthangplus/eslgo/resource"
 	"github.com/zenthangplus/eslgo/tcpsocket"
 	"github.com/zenthangplus/eslgo/websocket"
@@ -59,10 +60,21 @@ func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.Respo
 		defer ws.Close()
 		c := websocket.NewConn(ws)
 		conn := newConnection(c, true, opts.Options)
-		conn.logger.Info("New outbound connection from %s\n", c.RemoteAddr().String())
+		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
 		go conn.dummyLoop()
 		// Does not call the handler directly to ensure closing cleanly
 		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
+	}
+}
+
+func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandler) error {
+	switch opts.Protocol {
+	case Websocket:
+		return opts.ListenAndServeWs(address, handler)
+	case Tcpsocket:
+		return opts.ListenAndServeTcp(address, handler)
+	default:
+		return fmt.Errorf("protocol %s not supported", opts.Protocol)
 	}
 }
 
@@ -73,18 +85,17 @@ func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHan
 		Addr:              address,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
+	opts.Logger.Info("Listening for new ESL Websocket connections on %s", address)
 	return server.ListenAndServe()
 }
 
-// ListenAndServe - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
-func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandler) error {
+// ListenAndServeTcp - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
+func (opts OutboundOptions) ListenAndServeTcp(address string, handler OutboundHandler) error {
 	listener, err := net.Listen(opts.Network, address)
 	if err != nil {
 		return err
 	}
-	if opts.Logger != nil {
-		opts.Logger.Info("Listening for new ESL connections on %s\n", listener.Addr().String())
-	}
+	opts.Logger.Info("Listening for new ESL connections on %s", listener.Addr().String())
 	for {
 		c, err := listener.Accept()
 		if err != nil {
@@ -92,14 +103,12 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 		}
 		conn := newConnection(tcpsocket.NewConn(c), true, opts.Options)
 
-		conn.logger.Info("New outbound connection from %s\n", c.RemoteAddr().String())
+		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
 		go conn.dummyLoop()
 		// Does not call the handler directly to ensure closing cleanly
 		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
 	}
 
-	if opts.Logger != nil {
-		opts.Logger.Info("Outbound server shutting down")
-	}
+	opts.Logger.Info("Outbound server shutting down")
 	return errors.New("connection closed")
 }
