@@ -12,6 +12,7 @@ package eslgo
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/zenthangplus/eslgo/tcpsocket"
 	"net"
 	"sync"
 	"testing"
@@ -21,7 +22,8 @@ const TestEventToSend = "Content-Length: 483\r\nContent-Type: text/event-plain\r
 
 func TestEvent_readPlainEvent(t *testing.T) {
 	server, client := net.Pipe()
-	connection := newConnection(client, false, DefaultOptions)
+	conn := tcpsocket.NewConn(client)
+	connection := newConnection(conn, false, DefaultOptions)
 	defer connection.Close()
 	defer server.Close()
 	defer client.Close()

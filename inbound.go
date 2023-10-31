@@ -14,6 +14,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/resource"
 	"net"
 	"time"
 )
@@ -52,7 +53,7 @@ func (opts InboundOptions) Dial(address string) (*Conn, error) {
 	connection := newConnection(c, false, opts.Options)
 
 	// First auth
-	<-connection.responseChannels[TypeAuthRequest]
+	<-connection.responseChannels[resource.TypeAuthRequest]
 	authCtx, cancel := context.WithTimeout(connection.runningContext, opts.AuthTimeout)
 	err = connection.doAuth(authCtx, command.Auth{Password: opts.Password})
 	cancel()
@@ -76,7 +77,7 @@ func (opts InboundOptions) Dial(address string) (*Conn, error) {
 
 func (c *Conn) disconnectLoop(onDisconnect func()) {
 	select {
-	case <-c.responseChannels[TypeDisconnect]:
+	case <-c.responseChannels[resource.TypeDisconnect]:
 		c.Close()
 		if onDisconnect != nil {
 			onDisconnect()
@@ -90,7 +91,7 @@ func (c *Conn) disconnectLoop(onDisconnect func()) {
 func (c *Conn) authLoop(auth command.Auth, authTimeout time.Duration) {
 	for {
 		select {
-		case <-c.responseChannels[TypeAuthRequest]:
+		case <-c.responseChannels[resource.TypeAuthRequest]:
 			authCtx, cancel := context.WithTimeout(c.runningContext, authTimeout)
 			err := c.doAuth(authCtx, auth)
 			cancel()

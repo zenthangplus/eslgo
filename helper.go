@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"github.com/zenthangplus/eslgo/command"
 	"github.com/zenthangplus/eslgo/command/call"
+	"github.com/zenthangplus/eslgo/resource"
 	"io"
 	"log"
 )
@@ -48,27 +49,27 @@ func (c *Conn) DebugOff(id string) {
 }
 
 // Phrase - Executes the mod_dptools phrase app
-func (c *Conn) Phrase(ctx context.Context, uuid, macro string, times int, wait bool) (*RawResponse, error) {
+func (c *Conn) Phrase(ctx context.Context, uuid, macro string, times int, wait bool) (*resource.RawResponse, error) {
 	return c.audioCommand(ctx, "phrase", uuid, macro, times, wait)
 }
 
 // PhraseWithArg - Executes the mod_dptools phrase app with arguments
-func (c *Conn) PhraseWithArg(ctx context.Context, uuid, macro string, argument interface{}, times int, wait bool) (*RawResponse, error) {
+func (c *Conn) PhraseWithArg(ctx context.Context, uuid, macro string, argument interface{}, times int, wait bool) (*resource.RawResponse, error) {
 	return c.audioCommand(ctx, "phrase", uuid, fmt.Sprintf("%s,%v", macro, argument), times, wait)
 }
 
 // Playback - Executes the mod_dptools playback app
-func (c *Conn) Playback(ctx context.Context, uuid, audioArgs string, times int, wait bool) (*RawResponse, error) {
+func (c *Conn) Playback(ctx context.Context, uuid, audioArgs string, times int, wait bool) (*resource.RawResponse, error) {
 	return c.audioCommand(ctx, "playback", uuid, audioArgs, times, wait)
 }
 
 // Say - Executes the mod_dptools say app
-func (c *Conn) Say(ctx context.Context, uuid, audioArgs string, times int, wait bool) (*RawResponse, error) {
+func (c *Conn) Say(ctx context.Context, uuid, audioArgs string, times int, wait bool) (*resource.RawResponse, error) {
 	return c.audioCommand(ctx, "say", uuid, audioArgs, times, wait)
 }
 
 // Speak - Executes the mod_dptools speak app
-func (c *Conn) Speak(ctx context.Context, uuid, audioArgs string, times int, wait bool) (*RawResponse, error) {
+func (c *Conn) Speak(ctx context.Context, uuid, audioArgs string, times int, wait bool) (*resource.RawResponse, error) {
 	return c.audioCommand(ctx, "speak", uuid, audioArgs, times, wait)
 }
 
@@ -101,7 +102,7 @@ func (c *Conn) WaitForDTMF(ctx context.Context, uuid string) (byte, error) {
 }
 
 // Helper for mod_dptools apps since they are very similar in invocation
-func (c *Conn) audioCommand(ctx context.Context, command, uuid, audioArgs string, times int, wait bool) (*RawResponse, error) {
+func (c *Conn) audioCommand(ctx context.Context, command, uuid, audioArgs string, times int, wait bool) (*resource.RawResponse, error) {
 	response, err := c.SendCommand(ctx, &call.Execute{
 		UUID:    uuid,
 		AppName: command,

@@ -15,6 +15,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/tcpsocket"
 	"net"
 	"sync"
 	"testing"
@@ -23,7 +24,8 @@ import (
 
 func TestConn_SendCommand(t *testing.T) {
 	server, client := net.Pipe()
-	connection := newConnection(client, false, DefaultOptions)
+	conn := tcpsocket.NewConn(client)
+	connection := newConnection(conn, false, DefaultOptions)
 	defer connection.Close()
 	defer server.Close()
 	defer client.Close()

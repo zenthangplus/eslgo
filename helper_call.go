@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"github.com/zenthangplus/eslgo/command"
 	"github.com/zenthangplus/eslgo/command/call"
+	"github.com/zenthangplus/eslgo/resource"
 	"strings"
 )
 
@@ -29,7 +30,7 @@ type Leg struct {
 // Arguments: ctx context.Context for supporting context cancellation, background bool should we wait for the origination to complete
 // aLeg, bLeg Leg The aLeg and bLeg of the call respectively
 // vars map[string]string, channel variables to be passed to originate for both legs, contained in {}
-func (c *Conn) OriginateCall(ctx context.Context, background bool, aLeg, bLeg Leg, vars map[string]string) (*RawResponse, error) {
+func (c *Conn) OriginateCall(ctx context.Context, background bool, aLeg, bLeg Leg, vars map[string]string) (*resource.RawResponse, error) {
 	if vars == nil {
 		vars = make(map[string]string)
 	}
@@ -54,7 +55,7 @@ func (c *Conn) OriginateCall(ctx context.Context, background bool, aLeg, bLeg Le
 // vars map[string]string, channel variables to be passed to originate for both legs, contained in <>
 // bLeg string The bLeg of the call
 // aLegs ...string variadic argument for each aLeg to call
-func (c *Conn) EnterpriseOriginateCall(ctx context.Context, background bool, vars map[string]string, bLeg Leg, aLegs ...Leg) (*RawResponse, error) {
+func (c *Conn) EnterpriseOriginateCall(ctx context.Context, background bool, vars map[string]string, bLeg Leg, aLegs ...Leg) (*resource.RawResponse, error) {
 	if len(aLegs) == 0 {
 		return nil, errors.New("no aLeg specified")
 	}

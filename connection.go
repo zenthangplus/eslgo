@@ -11,25 +11,21 @@
 package eslgo
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/zenthangplus/eslgo/command"
-	"net"
-	"net/textproto"
+	"github.com/zenthangplus/eslgo/resource"
 	"sync"
 	"time"
 )
 
 type Conn struct {
-	conn              net.Conn
-	reader            *bufio.Reader
-	header            *textproto.Reader
+	conn              FsConn
 	writeLock         sync.Mutex
 	runningContext    context.Context
 	stopFunc          func()
-	responseChannels  map[string]chan *RawResponse
+	responseChannels  map[string]chan *resource.RawResponse
 	responseChanMutex sync.RWMutex
 	eventListenerLock sync.RWMutex
 	eventListeners    map[string]map[string]EventListener
@@ -54,12 +50,7 @@ var DefaultOptions = Options{
 	ExitTimeout: 5 * time.Second,
 }
 
-const EndOfMessage = "\r\n\r\n"
-
-func newConnection(c net.Conn, outbound bool, opts Options) *Conn {
-	reader := bufio.NewReader(c)
-	header := textproto.NewReader(reader)
-
+func newConnection(c FsConn, outbound bool, opts Options) *Conn {
 	// If logger is nil, do not actually output anything
 	if opts.Logger == nil {
 		opts.Logger = NilLogger{}
@@ -68,17 +59,15 @@ func newConnection(c net.Conn, outbound bool, opts Options) *Conn {
 	runningContext, stop := context.WithCancel(opts.Context)
 
 	instance := &Conn{
-		conn:   c,
-		reader: reader,
-		header: header,
-		responseChannels: map[string]chan *RawResponse{
-			TypeReply:       make(chan *RawResponse),
-			TypeAPIResponse: make(chan *RawResponse),
-			TypeEventPlain:  make(chan *RawResponse),
-			TypeEventXML:    make(chan *RawResponse),
-			TypeEventJSON:   make(chan *RawResponse),
-			TypeAuthRequest: make(chan *RawResponse, 1), // Buffered to ensure we do not lose the initial auth request before we are setup to respond
-			TypeDisconnect:  make(chan *RawResponse),
+		conn: c,
+		responseChannels: map[string]chan *resource.RawResponse{
+			resource.TypeReply:       make(chan *resource.RawResponse),
+			resource.TypeAPIResponse: make(chan *resource.RawResponse),
+			resource.TypeEventPlain:  make(chan *resource.RawResponse),
+			resource.TypeEventXML:    make(chan *resource.RawResponse),
+			resource.TypeEventJSON:   make(chan *resource.RawResponse),
+			resource.TypeAuthRequest: make(chan *resource.RawResponse, 1), // Buffered to ensure we do not lose the initial auth request before we are setup to respond
+			resource.TypeDisconnect:  make(chan *resource.RawResponse),
 		},
 		runningContext: runningContext,
 		stopFunc:       stop,
@@ -117,7 +106,7 @@ func (c *Conn) RemoveEventListener(channelUUID string, id string) {
 }
 
 // SendCommand - Sends the specified ESL command to FreeSWITCH with the provided context. Returns the response data and any errors encountered.
-func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*RawResponse, error) {
+func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*resource.RawResponse, error) {
 	c.writeLock.Lock()
 	defer c.writeLock.Unlock()
 
@@ -136,7 +125,7 @@ func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*RawRespon
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = c.conn.SetWriteDeadline(deadline)
 	}
-	_, err := c.conn.Write([]byte(cmd.BuildMessage() + EndOfMessage))
+	err := c.conn.Write(cmd.BuildMessage())
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +134,13 @@ func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*RawRespon
 	c.responseChanMutex.RLock()
 	defer c.responseChanMutex.RUnlock()
 	select {
-	case response := <-c.responseChannels[TypeReply]:
+	case response := <-c.responseChannels[resource.TypeReply]:
 		if response == nil {
 			// We only get nil here if the channel is closed
 			return nil, errors.New("connection closed")
 		}
 		return response, nil
-	case response := <-c.responseChannels[TypeAPIResponse]:
+	case response := <-c.responseChannels[resource.TypeAPIResponse]:
 		if response == nil {
 			// We only get nil here if the channel is closed
 			return nil, errors.New("connection closed")
@@ -240,21 +229,21 @@ func (c *Conn) eventLoop() {
 		var err error
 		c.responseChanMutex.RLock()
 		select {
-		case raw := <-c.responseChannels[TypeEventPlain]:
+		case raw := <-c.responseChannels[resource.TypeEventPlain]:
 			if raw == nil {
 				// We only get nil here if the channel is closed
 				c.responseChanMutex.RUnlock()
 				return
 			}
 			event, err = readPlainEvent(raw.Body)
-		case raw := <-c.responseChannels[TypeEventXML]:
+		case raw := <-c.responseChannels[resource.TypeEventXML]:
 			if raw == nil {
 				// We only get nil here if the channel is closed
 				c.responseChanMutex.RUnlock()
 				return
 			}
 			event, err = readXMLEvent(raw.Body)
-		case raw := <-c.responseChannels[TypeEventJSON]:
+		case raw := <-c.responseChannels[resource.TypeEventJSON]:
 			if raw == nil {
 				// We only get nil here if the channel is closed
 				c.responseChanMutex.RUnlock()
@@ -287,7 +276,7 @@ func (c *Conn) receiveLoop() {
 }
 
 func (c *Conn) doMessage() error {
-	response, err := c.readResponse()
+	response, err := c.conn.ReadResponse()
 	if err != nil {
 		return err
 	}
@@ -319,4 +308,39 @@ func (c *Conn) doMessage() error {
 		return errors.New("no response channel for Content-Type: " + response.GetHeader("Content-Type"))
 	}
 	return nil
+}
+
+func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration) {
+	ctx, cancel := context.WithTimeout(c.runningContext, connectTimeout)
+	response, err := c.SendCommand(ctx, command.Connect{})
+	cancel()
+	if err != nil {
+		c.logger.Warn("Error connecting to %s error %s", c.conn.RemoteAddr().String(), err.Error())
+		// Try closing cleanly first
+		c.Close() // Not ExitAndClose since this error connection is most likely from communication failure
+		return
+	}
+	handler(c.runningContext, c, response)
+	// XXX This is ugly, the issue with short lived async sockets on our end is if they complete too fast we can actually
+	// close the connection before FreeSWITCH is in a state to close the connection on their end. 25ms is an magic value
+	// found by testing to have no failures on my test system. I started at 1 second and reduced as far as I could go.
+	// TODO This actually may be fixed: https://github.com/signalwire/freeswitch/pull/636
+	time.Sleep(connectionDelay)
+	c.ExitAndClose()
+}
+
+func (c *Conn) dummyLoop() {
+	select {
+	case <-c.responseChannels[resource.TypeDisconnect]:
+		c.logger.Info("Disconnect outbound connection", c.conn.RemoteAddr())
+		if c.closeDelay >= 0 {
+			time.AfterFunc(c.closeDelay, func() {
+				c.Close()
+			})
+		}
+	case <-c.responseChannels[resource.TypeAuthRequest]:
+		c.logger.Debug("Ignoring auth request on outbound connection", c.conn.RemoteAddr())
+	case <-c.runningContext.Done():
+		return
+	}
 }

@@ -8,14 +8,12 @@
  * Contributor(s):
  * Andrew Querol <aquerol@percipia.com>
  */
-package eslgo
+package resource
 
 import (
 	"fmt"
-	"io"
 	"net/textproto"
 	"net/url"
-	"strconv"
 	"strings"
 )
 
@@ -33,30 +31,6 @@ const (
 type RawResponse struct {
 	Headers textproto.MIMEHeader
 	Body    []byte
-}
-
-func (c *Conn) readResponse() (*RawResponse, error) {
-	header, err := c.header.ReadMIMEHeader()
-	if err != nil {
-		return nil, err
-	}
-	response := &RawResponse{
-		Headers: header,
-	}
-
-	if contentLength := header.Get("Content-Length"); len(contentLength) > 0 {
-		length, err := strconv.Atoi(contentLength)
-		if err != nil {
-			return response, err
-		}
-		response.Body = make([]byte, length)
-		_, err = io.ReadFull(c.reader, response.Body)
-		if err != nil {
-			return response, err
-		}
-	}
-
-	return response, nil
 }
 
 // IsOk Helper to check response status, uses the Reply-Text header primarily. Calls GetReply internally
