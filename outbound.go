@@ -49,24 +49,6 @@ func ListenAndServe(address string, handler OutboundHandler) error {
 	return DefaultOutboundOptions.ListenAndServe(address, handler)
 }
 
-func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		upgrader := websocket.NewUpgrader()
-		ws, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			opts.Logger.Error("Upgrade ws connection error: %s", err)
-			return
-		}
-		defer ws.Close()
-		c := websocket.NewConn(ws)
-		conn := newConnection(c, true, opts.Options)
-		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
-		go conn.dummyLoop()
-		// Does not call the handler directly to ensure closing cleanly
-		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
-	}
-}
-
 func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandler) error {
 	switch opts.Protocol {
 	case Websocket:
@@ -76,17 +58,6 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 	default:
 		return fmt.Errorf("protocol %s not supported", opts.Protocol)
 	}
-}
-
-// ListenAndServeWs - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
-func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHandler) error {
-	http.HandleFunc("/ws", opts.wsHandler(handler))
-	server := &http.Server{
-		Addr:              address,
-		ReadHeaderTimeout: 3 * time.Second,
-	}
-	opts.Logger.Info("Listening for new ESL Websocket connections on %s", address)
-	return server.ListenAndServe()
 }
 
 // ListenAndServeTcp - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
@@ -111,4 +82,35 @@ func (opts OutboundOptions) ListenAndServeTcp(address string, handler OutboundHa
 
 	opts.Logger.Info("Outbound server shutting down")
 	return errors.New("connection closed")
+}
+
+// ListenAndServeWs - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
+func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHandler) error {
+	opts.Logger.Info("Listening for new ESL Websocket connections on %s", address)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", opts.wsHandler(handler))
+	server := &http.Server{
+		Addr:              address,
+		ReadHeaderTimeout: 3 * time.Second,
+		Handler:           mux,
+	}
+	return server.ListenAndServe()
+}
+
+func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.NewUpgrader()
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			opts.Logger.Error("Upgrade ws connection error: %s", err)
+			return
+		}
+		//defer ws.Close()
+		c := websocket.NewConn(ws)
+		conn := newConnection(c, true, opts.Options)
+		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
+		go conn.dummyLoop()
+		// Does not call the handler directly to ensure closing cleanly
+		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
+	}
 }

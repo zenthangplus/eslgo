@@ -45,6 +45,7 @@ func TestConn_SendCommand(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, response)
 		assert.True(t, response.IsOk())
+		assert.Equal(t, "command/reply", response.GetHeader("Content-Type"))
 		assert.Equal(t, "+OK Job-UUID: c7709e9c-1517-11dc-842a-d3a3942d3d63", response.GetHeader("Reply-Text"))
 		wait.Done()
 	}()
