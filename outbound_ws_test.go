@@ -107,8 +107,10 @@ connected`))
 
 	// Send another message to confirm that connection is established
 	time.Sleep(1100 * time.Millisecond)
-	err = wsClient.WriteMessage(websocket.TextMessage, []byte("test1"))
+	msgType, payload, err := wsClient.ReadMessage()
 	require.NoError(t, err)
+	require.Equal(t, websocket.TextMessage, msgType)
+	require.Equal(t, "exit", string(payload)) // Exit message is sent when handler is finished
 }
 
 func TestOutboundWS_GivenServerClientConnected_WhenSendEvent_ShouldTriggerHandler(t *testing.T) {
@@ -144,7 +146,7 @@ connected`))
 	require.NoError(t, err)
 
 	// Send an event
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(1100 * time.Millisecond)
 	err = wsClient.WriteMessage(websocket.TextMessage, []byte(`Content-Type: text/event-plain
 Content-Length: 119
 Unique-Id: call-1
