@@ -16,20 +16,20 @@ import (
 )
 
 var testNoopHandlerConnection = func(ctx context.Context, conn *Conn, response *resource.RawResponse) {}
-var testOutboundOpts = OutboundOptions{
-	Options: Options{
-		Context:     context.Background(),
-		Logger:      NormalLogger{},
-		ExitTimeout: 5 * time.Second,
-		Protocol:    Websocket,
-	},
-	ConnectTimeout:  1 * time.Second,
-	ConnectionDelay: 25 * time.Millisecond,
-}
 
 func testCreateWsServer(handler OutboundHandler) (server *httptest.Server, wsUrl string) {
+	opts := OutboundOptions{
+		Options: Options{
+			Context:     context.Background(),
+			Logger:      NormalLogger{},
+			ExitTimeout: 5 * time.Second,
+			Protocol:    Websocket,
+		},
+		ConnectTimeout:  1 * time.Second,
+		ConnectionDelay: 25 * time.Millisecond,
+	}
 	muxHandler := http.NewServeMux()
-	muxHandler.HandleFunc("/ws", testOutboundOpts.wsHandler(handler))
+	muxHandler.HandleFunc("/ws", opts.wsHandler(handler))
 	server = httptest.NewServer(muxHandler)
 	wsUrl = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
 	return
