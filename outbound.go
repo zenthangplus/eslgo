@@ -67,6 +67,10 @@ func (opts OutboundOptions) ListenAndServeTcp(address string, handler OutboundHa
 		return err
 	}
 	opts.Logger.Info("Listening for new ESL connections on %s", listener.Addr().String())
+	return opts.serveTcp(listener, handler)
+}
+
+func (opts OutboundOptions) serveTcp(listener net.Listener, handler OutboundHandler) error {
 	for {
 		c, err := listener.Accept()
 		if err != nil {
