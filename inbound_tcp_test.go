@@ -12,22 +12,6 @@ import (
 	"time"
 )
 
-func createTestResponseHandlerForInbound(conn net.Conn, actualClientRequest chan string) {
-	logger := NormalLogger{}
-	reader := bufio.NewReader(conn)
-	for {
-		rawCmd, err := reader.ReadString('\r')
-		if err != nil {
-			logger.Error("Error when read client request: %s", err)
-			break
-		}
-		cmd := strings.TrimSpace(rawCmd)
-		if len(cmd) > 0 {
-			actualClientRequest <- cmd
-		}
-	}
-}
-
 func createTestTcpServerForInbound(t *testing.T) (listener net.Listener, connectionCh chan net.Conn) {
 	serverAddr := ":0"
 	listener, err := net.Listen("tcp", serverAddr)
@@ -50,6 +34,22 @@ func createTestTcpServerForInbound(t *testing.T) (listener net.Listener, connect
 	return listener, connectionCh
 }
 
+func createTestTcpResponseHandlerForInbound(conn net.Conn, actualClientRequest chan string) {
+	logger := NormalLogger{}
+	reader := bufio.NewReader(conn)
+	for {
+		rawCmd, err := reader.ReadString('\r')
+		if err != nil {
+			logger.Error("Error when read client request: %s", err)
+			break
+		}
+		cmd := strings.TrimSpace(rawCmd)
+		if len(cmd) > 0 {
+			actualClientRequest <- cmd
+		}
+	}
+}
+
 func TestInboundTcp_WhenClientAuthenButServerNotReplyAuthStatus_ShouldCloseConnection(t *testing.T) {
 	listener, connectionCh := createTestTcpServerForInbound(t)
 	defer listener.Close()
@@ -62,7 +62,7 @@ func TestInboundTcp_WhenClientAuthenButServerNotReplyAuthStatus_ShouldCloseConne
 			require.FailNow(t, "No incoming connection found")
 			break
 		case clientConn = <-connectionCh:
-			go createTestResponseHandlerForInbound(clientConn, actualClientRequestCh)
+			go createTestTcpResponseHandlerForInbound(clientConn, actualClientRequestCh)
 
 			_, err := clientConn.Write([]byte("Content-Type: auth/request\r\nContent-Length: 0\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write auth/request to client")
@@ -104,7 +104,7 @@ func TestInboundTcp_WhenClientAuthenButServerReplyAuthenFailed_ShouldCloseConnec
 			require.FailNow(t, "No incoming connection found")
 			break
 		case clientConn = <-connectionCh:
-			go createTestResponseHandlerForInbound(clientConn, actualClientRequestCh)
+			go createTestTcpResponseHandlerForInbound(clientConn, actualClientRequestCh)
 
 			_, err := clientConn.Write([]byte("Content-Type: auth/request\r\nContent-Length: 0\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write auth/request to client")
@@ -149,7 +149,7 @@ func TestInboundTcp_WhenClientAuthenButServerReplyAuthenOk_ShouldEstablishedConn
 			require.FailNow(t, "No incoming connection found")
 			break
 		case clientConn = <-connectionCh:
-			go createTestResponseHandlerForInbound(clientConn, actualClientRequestCh)
+			go createTestTcpResponseHandlerForInbound(clientConn, actualClientRequestCh)
 
 			_, err := clientConn.Write([]byte("Content-Type: auth/request\r\nContent-Length: 0\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write auth/request to client")
