@@ -88,7 +88,7 @@ func TestInboundTcp_WhenClientAuthenButServerNotReplyAuthStatus_ShouldCloseConne
 		Password:    "ClueCon",
 		AuthTimeout: 2 * time.Second,
 	}
-	_, err := opts.DialTcpsocket(listener.Addr().String())
+	_, err := opts.Dial(listener.Addr().String())
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
@@ -133,7 +133,7 @@ func TestInboundTcp_WhenClientAuthenButServerReplyAuthenFailed_ShouldCloseConnec
 		Password:    "ClueCon",
 		AuthTimeout: 2 * time.Second,
 	}
-	_, err := opts.DialTcpsocket(listener.Addr().String())
+	_, err := opts.Dial(listener.Addr().String())
 	require.Equal(t, 0, strings.Index(err.Error(), "failed to auth"), "Error should start with 'failed to auth'")
 }
 
@@ -178,7 +178,7 @@ func TestInboundTcp_WhenClientAuthenButServerReplyAuthenOk_ShouldEstablishedConn
 		Password:    "ClueCon",
 		AuthTimeout: 2 * time.Second,
 	}
-	conn, err := opts.DialTcpsocket(listener.Addr().String())
+	conn, err := opts.Dial(listener.Addr().String())
 	require.NoError(t, err)
 
 	res, err := conn.SendCommand(context.Background(), command.Event{
