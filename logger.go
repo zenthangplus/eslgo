@@ -15,20 +15,16 @@ type NilLogger struct{}
 type NormalLogger struct{}
 
 func (l NormalLogger) Debug(format string, args ...interface{}) {
-	log.Print("DEBUG: ")
-	log.Printf(format, args...)
+	log.Printf("DEBUG: "+format, args...)
 }
 func (l NormalLogger) Info(format string, args ...interface{}) {
-	log.Print("INFO: ")
-	log.Printf(format, args...)
+	log.Printf("INFO: "+format, args...)
 }
 func (l NormalLogger) Warn(format string, args ...interface{}) {
-	log.Print("WARN: ")
-	log.Printf(format, args...)
+	log.Printf("WARN: "+format, args...)
 }
 func (l NormalLogger) Error(format string, args ...interface{}) {
-	log.Print("ERROR: ")
-	log.Printf(format, args...)
+	log.Printf("ERROR: "+format, args...)
 }
 
 func (l NilLogger) Debug(string, ...interface{}) {}

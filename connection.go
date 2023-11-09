@@ -11,21 +11,16 @@
 package eslgo
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/zenthangplus/eslgo/command"
-	"net"
-	"net/textproto"
 	"sync"
 	"time"
 )
 
 type Conn struct {
-	conn              net.Conn
-	reader            *bufio.Reader
-	header            *textproto.Reader
+	conn              FsConn
 	writeLock         sync.Mutex
 	runningContext    context.Context
 	stopFunc          func()
@@ -45,6 +40,7 @@ type Options struct {
 	Context     context.Context // This specifies the base running context for the connection. If this context expires all connections will be terminated.
 	Logger      Logger          // This specifies the logger to be used for any library internal messages. Can be set to nil to suppress everything.
 	ExitTimeout time.Duration   // How long should we wait for FreeSWITCH to respond to our "exit" command. 5 seconds is a sane default.
+	Protocol    Protocol
 }
 
 // DefaultOptions - The default options used for creating the connection
@@ -52,14 +48,10 @@ var DefaultOptions = Options{
 	Context:     context.Background(),
 	Logger:      NormalLogger{},
 	ExitTimeout: 5 * time.Second,
+	Protocol:    Tcpsocket,
 }
 
-const EndOfMessage = "\r\n\r\n"
-
-func newConnection(c net.Conn, outbound bool, opts Options) *Conn {
-	reader := bufio.NewReader(c)
-	header := textproto.NewReader(reader)
-
+func newConnection(c FsConn, outbound bool, opts Options) *Conn {
 	// If logger is nil, do not actually output anything
 	if opts.Logger == nil {
 		opts.Logger = NilLogger{}
@@ -68,9 +60,7 @@ func newConnection(c net.Conn, outbound bool, opts Options) *Conn {
 	runningContext, stop := context.WithCancel(opts.Context)
 
 	instance := &Conn{
-		conn:   c,
-		reader: reader,
-		header: header,
+		conn: c,
 		responseChannels: map[string]chan *RawResponse{
 			TypeReply:       make(chan *RawResponse),
 			TypeAPIResponse: make(chan *RawResponse),
@@ -136,7 +126,7 @@ func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*RawRespon
 	if deadline, ok := ctx.Deadline(); ok {
 		_ = c.conn.SetWriteDeadline(deadline)
 	}
-	_, err := c.conn.Write([]byte(cmd.BuildMessage() + EndOfMessage))
+	err := c.conn.Write(cmd.BuildMessage())
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +258,7 @@ func (c *Conn) eventLoop() {
 		c.responseChanMutex.RUnlock()
 
 		if err != nil {
-			c.logger.Warn("Error parsing event\n%s\n", err.Error())
+			c.logger.Warn("Parsing event error: %s", err.Error())
 			continue
 		}
 
@@ -280,14 +270,14 @@ func (c *Conn) receiveLoop() {
 	for c.runningContext.Err() == nil {
 		err := c.doMessage()
 		if err != nil {
-			c.logger.Warn("Error receiving message: %s\n", err.Error())
+			c.logger.Warn("Error receiving message: %s", err.Error())
 			break
 		}
 	}
 }
 
 func (c *Conn) doMessage() error {
-	response, err := c.readResponse()
+	response, err := c.conn.ReadResponse()
 	if err != nil {
 		return err
 	}
@@ -313,10 +303,45 @@ func (c *Conn) doMessage() error {
 			return c.runningContext.Err()
 		case <-ctx.Done():
 			// Do not return an error since this is not fatal but log since it could be a indication of problems
-			c.logger.Warn("No one to handle response\nIs the connection overloaded or stopping?\n%v\n\n", response)
+			c.logger.Warn("No one to handle response. Is the connection overloaded or stopping? Response: %v", response)
 		}
 	} else {
 		return errors.New("no response channel for Content-Type: " + response.GetHeader("Content-Type"))
 	}
 	return nil
+}
+
+func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration) {
+	ctx, cancel := context.WithTimeout(c.runningContext, connectTimeout)
+	response, err := c.SendCommand(ctx, command.Connect{})
+	cancel()
+	if err != nil {
+		c.logger.Warn("Error connecting to %s error %s", c.conn.RemoteAddr().String(), err.Error())
+		// Try closing cleanly first
+		c.Close() // Not ExitAndClose since this error connection is most likely from communication failure
+		return
+	}
+	handler(c.runningContext, c, response)
+	// XXX This is ugly, the issue with short lived async sockets on our end is if they complete too fast we can actually
+	// close the connection before FreeSWITCH is in a state to close the connection on their end. 25ms is an magic value
+	// found by testing to have no failures on my test system. I started at 1 second and reduced as far as I could go.
+	// TODO This actually may be fixed: https://github.com/signalwire/freeswitch/pull/636
+	time.Sleep(connectionDelay)
+	c.ExitAndClose()
+}
+
+func (c *Conn) dummyLoop() {
+	select {
+	case <-c.responseChannels[TypeDisconnect]:
+		c.logger.Info("Disconnect outbound connection", c.conn.RemoteAddr())
+		if c.closeDelay >= 0 {
+			time.AfterFunc(c.closeDelay, func() {
+				c.Close()
+			})
+		}
+	case <-c.responseChannels[TypeAuthRequest]:
+		c.logger.Debug("Ignoring auth request on outbound connection", c.conn.RemoteAddr())
+	case <-c.runningContext.Done():
+		return
+	}
 }

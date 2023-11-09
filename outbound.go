@@ -13,8 +13,10 @@ package eslgo
 import (
 	"context"
 	"errors"
-	"github.com/zenthangplus/eslgo/command"
+	"fmt"
+	"github.com/gorilla/websocket"
 	"net"
+	"net/http"
 	"time"
 )
 
@@ -47,63 +49,75 @@ func ListenAndServe(address string, handler OutboundHandler) error {
 
 // ListenAndServe - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
 func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandler) error {
+	switch opts.Protocol {
+	case Websocket:
+		return opts.ListenAndServeWs(address, handler)
+	case Tcpsocket:
+		return opts.ListenAndServeTcp(address, handler)
+	default:
+		return fmt.Errorf("protocol %s not supported", opts.Protocol)
+	}
+}
+
+// ListenAndServeTcp - Open a new listener to listen outbound ESL connections by Tcp socket
+func (opts OutboundOptions) ListenAndServeTcp(address string, handler OutboundHandler) error {
 	listener, err := net.Listen(opts.Network, address)
 	if err != nil {
 		return err
 	}
-	if opts.Logger != nil {
-		opts.Logger.Info("Listening for new ESL connections on %s\n", listener.Addr().String())
-	}
+	opts.Logger.Info("Listening for new ESL connections on %s", listener.Addr().String())
+	return opts.serveTcp(listener, handler)
+}
+
+func (opts OutboundOptions) serveTcp(listener net.Listener, handler OutboundHandler) error {
 	for {
 		c, err := listener.Accept()
 		if err != nil {
 			break
 		}
-		conn := newConnection(c, true, opts.Options)
+		conn := newConnection(NewTcpsocketConn(c), true, opts.Options)
 
-		conn.logger.Info("New outbound connection from %s\n", c.RemoteAddr().String())
+		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
 		go conn.dummyLoop()
 		// Does not call the handler directly to ensure closing cleanly
 		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
 	}
 
-	if opts.Logger != nil {
-		opts.Logger.Info("Outbound server shutting down")
-	}
+	opts.Logger.Info("Outbound server shutting down")
 	return errors.New("connection closed")
 }
 
-func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration) {
-	ctx, cancel := context.WithTimeout(c.runningContext, connectTimeout)
-	response, err := c.SendCommand(ctx, command.Connect{})
-	cancel()
-	if err != nil {
-		c.logger.Warn("Error connecting to %s error %s", c.conn.RemoteAddr().String(), err.Error())
-		// Try closing cleanly first
-		c.Close() // Not ExitAndClose since this error connection is most likely from communication failure
-		return
+// ListenAndServeWs - Open a new listener to listen outbound ESL connections by Websocket
+func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHandler) error {
+	opts.Logger.Info("Listening for new ESL Websocket connections on %s", address)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", opts.wsHandler(handler))
+	server := &http.Server{
+		Addr:              address,
+		ReadHeaderTimeout: 3 * time.Second,
+		Handler:           mux,
 	}
-	handler(c.runningContext, c, response)
-	// XXX This is ugly, the issue with short lived async sockets on our end is if they complete too fast we can actually
-	// close the connection before FreeSWITCH is in a state to close the connection on their end. 25ms is an magic value
-	// found by testing to have no failures on my test system. I started at 1 second and reduced as far as I could go.
-	// TODO This actually may be fixed: https://github.com/signalwire/freeswitch/pull/636
-	time.Sleep(connectionDelay)
-	c.ExitAndClose()
+	return server.ListenAndServe()
 }
 
-func (c *Conn) dummyLoop() {
-	select {
-	case <-c.responseChannels[TypeDisconnect]:
-		c.logger.Info("Disconnect outbound connection", c.conn.RemoteAddr())
-		if c.closeDelay >= 0 {
-			time.AfterFunc(c.closeDelay, func() {
-				c.Close()
-			})
+func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		upgrader := &websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
 		}
-	case <-c.responseChannels[TypeAuthRequest]:
-		c.logger.Debug("Ignoring auth request on outbound connection", c.conn.RemoteAddr())
-	case <-c.runningContext.Done():
-		return
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			opts.Logger.Error("Upgrade ws connection error: %s", err)
+			return
+		}
+		//defer ws.Close()
+		c := NewWebsocketConn(ws)
+		conn := newConnection(c, true, opts.Options)
+		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
+		go conn.dummyLoop()
+		// Does not call the handler directly to ensure closing cleanly
+		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
 	}
 }
