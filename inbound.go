@@ -16,7 +16,6 @@ import (
 	websocketCore "github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/zenthangplus/eslgo/command"
-	"github.com/zenthangplus/eslgo/resource"
 	"net"
 	"time"
 )
@@ -83,7 +82,7 @@ func (opts InboundOptions) DialTcpsocket(address string) (*Conn, error) {
 // handleConnection ...
 func (opts InboundOptions) handleConnection(connection *Conn) (*Conn, error) {
 	// First auth
-	<-connection.responseChannels[resource.TypeAuthRequest]
+	<-connection.responseChannels[TypeAuthRequest]
 	authCtx, cancel := context.WithTimeout(connection.runningContext, opts.AuthTimeout)
 	err := connection.doAuth(authCtx, command.Auth{Password: opts.Password})
 	cancel()
@@ -107,7 +106,7 @@ func (opts InboundOptions) handleConnection(connection *Conn) (*Conn, error) {
 
 func (c *Conn) disconnectLoop(onDisconnect func()) {
 	select {
-	case <-c.responseChannels[resource.TypeDisconnect]:
+	case <-c.responseChannels[TypeDisconnect]:
 		c.Close()
 		if onDisconnect != nil {
 			onDisconnect()
@@ -121,7 +120,7 @@ func (c *Conn) disconnectLoop(onDisconnect func()) {
 func (c *Conn) authLoop(auth command.Auth, authTimeout time.Duration) {
 	for {
 		select {
-		case <-c.responseChannels[resource.TypeAuthRequest]:
+		case <-c.responseChannels[TypeAuthRequest]:
 			authCtx, cancel := context.WithTimeout(c.runningContext, authTimeout)
 			err := c.doAuth(authCtx, auth)
 			cancel()

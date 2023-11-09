@@ -3,7 +3,6 @@ package eslgo
 import (
 	"bufio"
 	"github.com/pkg/errors"
-	"github.com/zenthangplus/eslgo/resource"
 	"io"
 	"net"
 	"net/textproto"
@@ -29,12 +28,12 @@ func NewTcpsocketConn(conn net.Conn) *TcbsocketConn {
 	}
 }
 
-func (c *TcbsocketConn) ReadResponse() (*resource.RawResponse, error) {
+func (c *TcbsocketConn) ReadResponse() (*RawResponse, error) {
 	header, err := c.header.ReadMIMEHeader()
 	if err != nil {
 		return nil, errors.WithMessage(err, "read mime header error")
 	}
-	response := &resource.RawResponse{
+	response := &RawResponse{
 		Headers: header,
 	}
 

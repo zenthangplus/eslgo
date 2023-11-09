@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zenthangplus/eslgo/resource"
 	"io"
 	"log"
 	"net"
@@ -127,7 +126,7 @@ connected`))
 
 func TestOutboundTcp_GivenServerClientConnected_WhenSendEvent_ShouldTriggerHandler(t *testing.T) {
 	receivingEvent := make(chan *Event)
-	handleConnection := func(ctx context.Context, conn *Conn, response *resource.RawResponse) {
+	handleConnection := func(ctx context.Context, conn *Conn, response *RawResponse) {
 		callId := response.GetHeader("Unique-Id")
 		log.Printf("Got connection for call %s, response: %#v", callId, response)
 

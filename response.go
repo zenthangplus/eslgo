@@ -8,7 +8,7 @@
  * Contributor(s):
  * Andrew Querol <aquerol@percipia.com>
  */
-package resource
+package eslgo
 
 import (
 	"fmt"

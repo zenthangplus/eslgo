@@ -6,7 +6,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zenthangplus/eslgo/resource"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +14,7 @@ import (
 	"time"
 )
 
-var testNoopHandlerConnection = func(ctx context.Context, conn *Conn, response *resource.RawResponse) {}
+var testNoopHandlerConnection = func(ctx context.Context, conn *Conn, response *RawResponse) {}
 
 func testCreateWsServer(handler OutboundHandler) (server *httptest.Server, wsUrl string) {
 	opts := OutboundOptions{
@@ -115,7 +114,7 @@ connected`))
 
 func TestOutboundWS_GivenServerClientConnected_WhenSendEvent_ShouldTriggerHandler(t *testing.T) {
 	receivingEvent := make(chan *Event)
-	handleConnection := func(ctx context.Context, conn *Conn, response *resource.RawResponse) {
+	handleConnection := func(ctx context.Context, conn *Conn, response *RawResponse) {
 		callId := response.GetHeader("Unique-Id")
 		log.Printf("Got connection for call %s, response: %#v", callId, response)
 

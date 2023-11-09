@@ -15,13 +15,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/websocket"
-	"github.com/zenthangplus/eslgo/resource"
 	"net"
 	"net/http"
 	"time"
 )
 
-type OutboundHandler func(ctx context.Context, conn *Conn, connectResponse *resource.RawResponse)
+type OutboundHandler func(ctx context.Context, conn *Conn, connectResponse *RawResponse)
 
 // OutboundOptions - Used to open a new listener for outbound ESL connections from FreeSWITCH
 type OutboundOptions struct {

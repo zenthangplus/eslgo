@@ -1,13 +1,12 @@
 package eslgo
 
 import (
-	"github.com/zenthangplus/eslgo/resource"
 	"net"
 	"time"
 )
 
 type FsConn interface {
-	ReadResponse() (*resource.RawResponse, error)
+	ReadResponse() (*RawResponse, error)
 
 	// Write writes data to the connection.
 	// Write can be made to time out and return an error after a fixed

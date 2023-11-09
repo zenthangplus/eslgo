@@ -15,7 +15,6 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"github.com/zenthangplus/eslgo/command"
-	"github.com/zenthangplus/eslgo/resource"
 	"sync"
 	"time"
 )
@@ -25,7 +24,7 @@ type Conn struct {
 	writeLock         sync.Mutex
 	runningContext    context.Context
 	stopFunc          func()
-	responseChannels  map[string]chan *resource.RawResponse
+	responseChannels  map[string]chan *RawResponse
 	responseChanMutex sync.RWMutex
 	eventListenerLock sync.RWMutex
 	eventListeners    map[string]map[string]EventListener
@@ -62,14 +61,14 @@ func newConnection(c FsConn, outbound bool, opts Options) *Conn {
 
 	instance := &Conn{
 		conn: c,
-		responseChannels: map[string]chan *resource.RawResponse{
-			resource.TypeReply:       make(chan *resource.RawResponse),
-			resource.TypeAPIResponse: make(chan *resource.RawResponse),
-			resource.TypeEventPlain:  make(chan *resource.RawResponse),
-			resource.TypeEventXML:    make(chan *resource.RawResponse),
-			resource.TypeEventJSON:   make(chan *resource.RawResponse),
-			resource.TypeAuthRequest: make(chan *resource.RawResponse, 1), // Buffered to ensure we do not lose the initial auth request before we are setup to respond
-			resource.TypeDisconnect:  make(chan *resource.RawResponse),
+		responseChannels: map[string]chan *RawResponse{
+			TypeReply:       make(chan *RawResponse),
+			TypeAPIResponse: make(chan *RawResponse),
+			TypeEventPlain:  make(chan *RawResponse),
+			TypeEventXML:    make(chan *RawResponse),
+			TypeEventJSON:   make(chan *RawResponse),
+			TypeAuthRequest: make(chan *RawResponse, 1), // Buffered to ensure we do not lose the initial auth request before we are setup to respond
+			TypeDisconnect:  make(chan *RawResponse),
 		},
 		runningContext: runningContext,
 		stopFunc:       stop,
@@ -108,7 +107,7 @@ func (c *Conn) RemoveEventListener(channelUUID string, id string) {
 }
 
 // SendCommand - Sends the specified ESL command to FreeSWITCH with the provided context. Returns the response data and any errors encountered.
-func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*resource.RawResponse, error) {
+func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*RawResponse, error) {
 	c.writeLock.Lock()
 	defer c.writeLock.Unlock()
 
@@ -136,13 +135,13 @@ func (c *Conn) SendCommand(ctx context.Context, cmd command.Command) (*resource.
 	c.responseChanMutex.RLock()
 	defer c.responseChanMutex.RUnlock()
 	select {
-	case response := <-c.responseChannels[resource.TypeReply]:
+	case response := <-c.responseChannels[TypeReply]:
 		if response == nil {
 			// We only get nil here if the channel is closed
 			return nil, errors.New("connection closed")
 		}
 		return response, nil
-	case response := <-c.responseChannels[resource.TypeAPIResponse]:
+	case response := <-c.responseChannels[TypeAPIResponse]:
 		if response == nil {
 			// We only get nil here if the channel is closed
 			return nil, errors.New("connection closed")
@@ -231,21 +230,21 @@ func (c *Conn) eventLoop() {
 		var err error
 		c.responseChanMutex.RLock()
 		select {
-		case raw := <-c.responseChannels[resource.TypeEventPlain]:
+		case raw := <-c.responseChannels[TypeEventPlain]:
 			if raw == nil {
 				// We only get nil here if the channel is closed
 				c.responseChanMutex.RUnlock()
 				return
 			}
 			event, err = readPlainEvent(raw.Body)
-		case raw := <-c.responseChannels[resource.TypeEventXML]:
+		case raw := <-c.responseChannels[TypeEventXML]:
 			if raw == nil {
 				// We only get nil here if the channel is closed
 				c.responseChanMutex.RUnlock()
 				return
 			}
 			event, err = readXMLEvent(raw.Body)
-		case raw := <-c.responseChannels[resource.TypeEventJSON]:
+		case raw := <-c.responseChannels[TypeEventJSON]:
 			if raw == nil {
 				// We only get nil here if the channel is closed
 				c.responseChanMutex.RUnlock()
@@ -333,14 +332,14 @@ func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectT
 
 func (c *Conn) dummyLoop() {
 	select {
-	case <-c.responseChannels[resource.TypeDisconnect]:
+	case <-c.responseChannels[TypeDisconnect]:
 		c.logger.Info("Disconnect outbound connection", c.conn.RemoteAddr())
 		if c.closeDelay >= 0 {
 			time.AfterFunc(c.closeDelay, func() {
 				c.Close()
 			})
 		}
-	case <-c.responseChannels[resource.TypeAuthRequest]:
+	case <-c.responseChannels[TypeAuthRequest]:
 		c.logger.Debug("Ignoring auth request on outbound connection", c.conn.RemoteAddr())
 	case <-c.runningContext.Done():
 		return

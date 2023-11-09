@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/zenthangplus/eslgo"
-	"github.com/zenthangplus/eslgo/resource"
 	"log"
 	"time"
 )
@@ -25,7 +24,7 @@ func main() {
 	log.Fatalln(opts.ListenAndServe(":8085", handleConnection))
 }
 
-func handleConnection(ctx context.Context, conn *eslgo.Conn, response *resource.RawResponse) {
+func handleConnection(ctx context.Context, conn *eslgo.Conn, response *eslgo.RawResponse) {
 	fmt.Printf("Got connection! %#v\n", response)
 
 	// Place the call in the foreground(api) to user 100 and playback an audio file as the bLeg and no exported variables

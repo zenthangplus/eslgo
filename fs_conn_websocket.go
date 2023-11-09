@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
-	"github.com/zenthangplus/eslgo/resource"
 	"io"
 	"net"
 	"net/textproto"
@@ -22,7 +21,7 @@ func NewWebsocketConn(conn *websocket.Conn) *WebsocketConn {
 	return &WebsocketConn{conn: conn}
 }
 
-func (c WebsocketConn) ReadResponse() (*resource.RawResponse, error) {
+func (c WebsocketConn) ReadResponse() (*RawResponse, error) {
 	messageType, msg, err := c.conn.ReadMessage()
 	if err != nil {
 		return nil, errors.WithMessage(err, "read message error")
@@ -33,14 +32,14 @@ func (c WebsocketConn) ReadResponse() (*resource.RawResponse, error) {
 	return c.decodeMsg(msg)
 }
 
-func (c WebsocketConn) decodeMsg(msg []byte) (*resource.RawResponse, error) {
+func (c WebsocketConn) decodeMsg(msg []byte) (*RawResponse, error) {
 	reader := bufio.NewReader(bytes.NewReader(msg))
 	header, err := textproto.NewReader(reader).ReadMIMEHeader()
 	if err != nil {
 		return nil, errors.WithMessage(err, "read mime header error")
 	}
 
-	response := &resource.RawResponse{
+	response := &RawResponse{
 		Headers: header,
 	}
 	if contentLength := header.Get("Content-Length"); len(contentLength) > 0 {
