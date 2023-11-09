@@ -14,8 +14,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/zenthangplus/eslgo/command"
-	"github.com/zenthangplus/eslgo/command/call"
+	"github.com/zenthangplus/eslgo/v2/command"
+	"github.com/zenthangplus/eslgo/v2/command/call"
 	"strings"
 )
 

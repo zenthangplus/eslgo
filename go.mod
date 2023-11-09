@@ -1,4 +1,4 @@
-module github.com/zenthangplus/eslgo
+module github.com/zenthangplus/eslgo/v2
 
 go 1.14
 

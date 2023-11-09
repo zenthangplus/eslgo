@@ -5,7 +5,7 @@ import (
 	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/v2/command"
 	"net"
 	"strings"
 	"testing"

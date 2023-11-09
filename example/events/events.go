@@ -14,7 +14,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/zenthangplus/eslgo"
+	"github.com/zenthangplus/eslgo/v2"
 	"os"
 	"time"
 )

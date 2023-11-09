@@ -15,7 +15,7 @@ import (
 	"fmt"
 	websocketCore "github.com/gorilla/websocket"
 	"github.com/pkg/errors"
-	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/v2/command"
 	"net"
 	"time"
 )
