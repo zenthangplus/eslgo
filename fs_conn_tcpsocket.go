@@ -1,4 +1,4 @@
-package tcpsocket
+package eslgo
 
 import (
 	"bufio"
@@ -13,23 +13,23 @@ import (
 
 const EndOfMessage = "\r\n\r\n"
 
-type Conn struct {
+type TcbsocketConn struct {
 	conn   net.Conn
 	reader *bufio.Reader
 	header *textproto.Reader
 }
 
-func NewConn(conn net.Conn) *Conn {
+func NewTcpsocketConn(conn net.Conn) *TcbsocketConn {
 	reader := bufio.NewReader(conn)
 	header := textproto.NewReader(reader)
-	return &Conn{
+	return &TcbsocketConn{
 		conn:   conn,
 		header: header,
 		reader: reader,
 	}
 }
 
-func (c *Conn) ReadResponse() (*resource.RawResponse, error) {
+func (c *TcbsocketConn) ReadResponse() (*resource.RawResponse, error) {
 	header, err := c.header.ReadMIMEHeader()
 	if err != nil {
 		return nil, errors.WithMessage(err, "read mime header error")
@@ -53,19 +53,19 @@ func (c *Conn) ReadResponse() (*resource.RawResponse, error) {
 	return response, nil
 }
 
-func (c *Conn) Write(data string) error {
+func (c *TcbsocketConn) Write(data string) error {
 	_, err := c.conn.Write([]byte(data + EndOfMessage))
 	return err
 }
 
-func (c *Conn) SetWriteDeadline(t time.Time) error {
+func (c *TcbsocketConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-func (c *Conn) Close() error {
+func (c *TcbsocketConn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Conn) RemoteAddr() net.Addr {
+func (c *TcbsocketConn) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }

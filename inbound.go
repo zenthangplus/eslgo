@@ -17,8 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/zenthangplus/eslgo/command"
 	"github.com/zenthangplus/eslgo/resource"
-	"github.com/zenthangplus/eslgo/tcpsocket"
-	"github.com/zenthangplus/eslgo/websocket"
 	"net"
 	"time"
 )
@@ -66,7 +64,7 @@ func (opts InboundOptions) DialWebsocket(url string) (*Conn, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "dial websocket connection error")
 	}
-	wsConn := websocket.NewConn(c)
+	wsConn := NewWebsocketConn(c)
 	connection := newConnection(wsConn, false, opts.Options)
 	return opts.handleConnection(connection)
 }
@@ -77,7 +75,7 @@ func (opts InboundOptions) DialTcpsocket(address string) (*Conn, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "dial tcpsocket connection error")
 	}
-	tcpConn := tcpsocket.NewConn(c)
+	tcpConn := NewTcpsocketConn(c)
 	connection := newConnection(tcpConn, false, opts.Options)
 	return opts.handleConnection(connection)
 }

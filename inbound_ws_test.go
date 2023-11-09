@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zenthangplus/eslgo/command"
-	websocket2 "github.com/zenthangplus/eslgo/websocket"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,7 +24,7 @@ func createTestWsServerForInbound(t *testing.T) (server *httptest.Server, wsUrl 
 
 func createTestWsHandlerForInbound(t *testing.T, connectionCh chan *websocket.Conn) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		upgrader := websocket2.NewUpgrader()
+		upgrader := &websocket.Upgrader{}
 		ws, err := upgrader.Upgrade(w, r, nil)
 		require.NoError(t, err)
 		connectionCh <- ws

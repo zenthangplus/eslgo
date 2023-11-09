@@ -1,4 +1,4 @@
-package websocket
+package eslgo
 
 import (
 	"bufio"
@@ -14,15 +14,15 @@ import (
 	"time"
 )
 
-type Conn struct {
+type WebsocketConn struct {
 	conn *websocket.Conn
 }
 
-func NewConn(conn *websocket.Conn) *Conn {
-	return &Conn{conn: conn}
+func NewWebsocketConn(conn *websocket.Conn) *WebsocketConn {
+	return &WebsocketConn{conn: conn}
 }
 
-func (c Conn) ReadResponse() (*resource.RawResponse, error) {
+func (c WebsocketConn) ReadResponse() (*resource.RawResponse, error) {
 	messageType, msg, err := c.conn.ReadMessage()
 	if err != nil {
 		return nil, errors.WithMessage(err, "read message error")
@@ -33,7 +33,7 @@ func (c Conn) ReadResponse() (*resource.RawResponse, error) {
 	return c.decodeMsg(msg)
 }
 
-func (c Conn) decodeMsg(msg []byte) (*resource.RawResponse, error) {
+func (c WebsocketConn) decodeMsg(msg []byte) (*resource.RawResponse, error) {
 	reader := bufio.NewReader(bytes.NewReader(msg))
 	header, err := textproto.NewReader(reader).ReadMIMEHeader()
 	if err != nil {
@@ -57,18 +57,18 @@ func (c Conn) decodeMsg(msg []byte) (*resource.RawResponse, error) {
 	return response, nil
 }
 
-func (c Conn) Write(data string) error {
+func (c WebsocketConn) Write(data string) error {
 	return c.conn.WriteMessage(websocket.TextMessage, []byte(data))
 }
 
-func (c Conn) SetWriteDeadline(t time.Time) error {
+func (c WebsocketConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
-func (c Conn) Close() error {
+func (c WebsocketConn) Close() error {
 	return c.conn.Close()
 }
 
-func (c Conn) RemoteAddr() net.Addr {
+func (c WebsocketConn) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }

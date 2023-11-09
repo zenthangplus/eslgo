@@ -14,9 +14,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"github.com/zenthangplus/eslgo/resource"
-	"github.com/zenthangplus/eslgo/tcpsocket"
-	"github.com/zenthangplus/eslgo/websocket"
 	"net"
 	"net/http"
 	"time"
@@ -49,6 +48,7 @@ func ListenAndServe(address string, handler OutboundHandler) error {
 	return DefaultOutboundOptions.ListenAndServe(address, handler)
 }
 
+// ListenAndServe - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
 func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandler) error {
 	switch opts.Protocol {
 	case Websocket:
@@ -60,7 +60,7 @@ func (opts OutboundOptions) ListenAndServe(address string, handler OutboundHandl
 	}
 }
 
-// ListenAndServeTcp - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
+// ListenAndServeTcp - Open a new listener to listen outbound ESL connections by Tcp socket
 func (opts OutboundOptions) ListenAndServeTcp(address string, handler OutboundHandler) error {
 	listener, err := net.Listen(opts.Network, address)
 	if err != nil {
@@ -76,7 +76,7 @@ func (opts OutboundOptions) serveTcp(listener net.Listener, handler OutboundHand
 		if err != nil {
 			break
 		}
-		conn := newConnection(tcpsocket.NewConn(c), true, opts.Options)
+		conn := newConnection(NewTcpsocketConn(c), true, opts.Options)
 
 		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
 		go conn.dummyLoop()
@@ -88,7 +88,7 @@ func (opts OutboundOptions) serveTcp(listener net.Listener, handler OutboundHand
 	return errors.New("connection closed")
 }
 
-// ListenAndServeWs - Open a new listener for outbound ESL connections from FreeSWITCH with provided options and handle them with the specified handler
+// ListenAndServeWs - Open a new listener to listen outbound ESL connections by Websocket
 func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHandler) error {
 	opts.Logger.Info("Listening for new ESL Websocket connections on %s", address)
 	mux := http.NewServeMux()
@@ -103,14 +103,18 @@ func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHan
 
 func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		upgrader := websocket.NewUpgrader()
+		upgrader := &websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		}
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			opts.Logger.Error("Upgrade ws connection error: %s", err)
 			return
 		}
 		//defer ws.Close()
-		c := websocket.NewConn(ws)
+		c := NewWebsocketConn(ws)
 		conn := newConnection(c, true, opts.Options)
 		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
 		go conn.dummyLoop()
