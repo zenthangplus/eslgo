@@ -11,7 +11,7 @@
 package call
 
 import (
-	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/v2/command"
 	"net/textproto"
 )
 

@@ -14,7 +14,7 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/v2/command"
 	"sync"
 	"time"
 )

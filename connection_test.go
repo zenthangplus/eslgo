@@ -14,7 +14,7 @@ import (
 	"bufio"
 	"context"
 	"github.com/stretchr/testify/assert"
-	"github.com/zenthangplus/eslgo/command"
+	"github.com/zenthangplus/eslgo/v2/command"
 	"net"
 	"sync"
 	"testing"

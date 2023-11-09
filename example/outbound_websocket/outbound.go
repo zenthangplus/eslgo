@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/zenthangplus/eslgo"
+	"github.com/zenthangplus/eslgo/v2"
 	"log"
 	"time"
 )

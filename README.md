@@ -1,19 +1,14 @@
 # eslgo
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/percipia/eslgo)](https://pkg.go.dev/github.com/percipia/eslgo)
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/percipia/eslgo/Go)
-[![Go Report Card](https://goreportcard.com/badge/github.com/percipia/eslgo)](https://goreportcard.com/report/github.com/percipia/eslgo)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/percipia/eslgo.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/percipia/eslgo/alerts/)
-[![GitHub license](https://img.shields.io/github/license/percipia/eslgo)](https://github.com/percipia/eslgo/blob/v1/LICENSE)
 
 eslgo is a [FreeSWITCH™](https://freeswitch.com/) ESL library for GoLang that support both TCP Socket and Websocket connection from Freeswitch.
 eslgo was written from the ground up in idiomatic Go for use in our production products tested handling thousands of calls per second.
 
 ## Install
 ```
-go get github.com/zenthangplus/eslgo
+go get github.com/zenthangplus/eslgo/v2
 ```
 ```
-github.com/zenthangplus/eslgo v1.4.1
+github.com/zenthangplus/eslgo/v2 v2.0.0
 ```
 
 ## Overview
@@ -42,7 +37,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/zenthangplus/eslgo"
+	"github.com/zenthangplus/eslgo/v2"
 	"log"
 )
 
@@ -66,7 +61,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/zenthangplus/eslgo"
+	"github.com/zenthangplus/eslgo/v2"
 	"time"
 )
 
