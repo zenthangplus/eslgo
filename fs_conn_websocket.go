@@ -26,7 +26,7 @@ func (c WebsocketConn) ReadResponse() (*RawResponse, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "read message error")
 	}
-	if messageType != websocket.TextMessage {
+	if messageType != websocket.TextMessage && messageType != websocket.BinaryMessage {
 		return nil, fmt.Errorf("message type %d not supported", messageType)
 	}
 	return c.decodeMsg(msg)
@@ -57,7 +57,7 @@ func (c WebsocketConn) decodeMsg(msg []byte) (*RawResponse, error) {
 }
 
 func (c WebsocketConn) Write(data string) error {
-	return c.conn.WriteMessage(websocket.TextMessage, []byte(data))
+	return c.conn.WriteMessage(websocket.TextMessage, []byte(data+EndOfMessage))
 }
 
 func (c WebsocketConn) SetWriteDeadline(t time.Time) error {

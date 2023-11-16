@@ -12,8 +12,8 @@ package eslgo
 
 import (
 	"context"
-	"errors"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/zenthangplus/eslgo/v2/command"
 	"sync"
 	"time"
@@ -279,7 +279,7 @@ func (c *Conn) receiveLoop() {
 func (c *Conn) doMessage() error {
 	response, err := c.conn.ReadResponse()
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "read response error")
 	}
 
 	c.responseChanMutex.RLock()

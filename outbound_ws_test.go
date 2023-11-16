@@ -46,7 +46,7 @@ func TestOutboundWS_WhenServerSendConnectCmdButClientNotReply_ShouldCloseConnect
 	messageType, payload, err := wsClient.ReadMessage()
 	require.NoError(t, err)
 	assert.Equal(t, websocket.TextMessage, messageType)
-	assert.Equal(t, "connect", string(payload))
+	assert.Equal(t, "connect\r\n\r\n", string(payload))
 
 	// Wait for server connection timeout
 	time.Sleep(1100 * time.Millisecond)
@@ -68,7 +68,7 @@ func TestOutboundWS_WhenServerSendConnectCmdAndClientReplyNotCorrectFormat_Shoul
 	messageType, payload, err := wsClient.ReadMessage()
 	require.NoError(t, err)
 	assert.Equal(t, websocket.TextMessage, messageType)
-	assert.Equal(t, "connect", string(payload))
+	assert.Equal(t, "connect\r\n\r\n", string(payload))
 
 	// Send connected message
 	err = wsClient.WriteMessage(websocket.TextMessage, []byte("connected"))
@@ -94,14 +94,10 @@ func TestOutboundWS_WhenServerSendConnectCmdAndClientReplyCorrectFormat_ShouldAc
 	messageType, payload, err := wsClient.ReadMessage()
 	require.NoError(t, err)
 	assert.Equal(t, websocket.TextMessage, messageType)
-	assert.Equal(t, "connect", string(payload))
+	assert.Equal(t, "connect\r\n\r\n", string(payload))
 
 	// Send connected message
-	err = wsClient.WriteMessage(websocket.TextMessage, []byte(`Content-Type: api/response
-Content-Length: 9
-Unique-Id: call-1
-
-connected`))
+	err = wsClient.WriteMessage(websocket.TextMessage, []byte("Content-Type: api/response\r\nContent-Length: 9\r\nUnique-Id: call-1\r\n\r\nconnected\r\n\r\n"))
 	require.NoError(t, err)
 
 	// Send another message to confirm that connection is established
@@ -109,7 +105,7 @@ connected`))
 	msgType, payload, err := wsClient.ReadMessage()
 	require.NoError(t, err)
 	require.Equal(t, websocket.TextMessage, msgType)
-	require.Equal(t, "exit", string(payload)) // Exit message is sent when handler is finished
+	require.Equal(t, "exit\r\n\r\n", string(payload)) // Exit message is sent when handler is finished
 }
 
 func TestOutboundWS_GivenServerClientConnected_WhenSendEvent_ShouldTriggerHandler(t *testing.T) {
@@ -134,7 +130,7 @@ func TestOutboundWS_GivenServerClientConnected_WhenSendEvent_ShouldTriggerHandle
 	messageType, payload, err := wsClient.ReadMessage()
 	require.NoError(t, err)
 	assert.Equal(t, websocket.TextMessage, messageType)
-	assert.Equal(t, "connect", string(payload))
+	assert.Equal(t, "connect\r\n\r\n", string(payload))
 
 	// Send connected message
 	err = wsClient.WriteMessage(websocket.TextMessage, []byte(`Content-Type: api/response
