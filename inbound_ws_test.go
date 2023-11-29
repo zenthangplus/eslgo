@@ -75,10 +75,10 @@ func TestInboundWs_WhenClientAuthenButServerNotReplyAuthStatus_ShouldCloseConnec
 			assert.NoError(t, err, "Cannot write auth/request to client")
 
 			authReq := <-actualClientRequestCh
-			assert.Equal(t, "auth ClueCon", authReq)
+			assert.Equal(t, "auth ClueCon\r\n\r\n", authReq)
 
 			exitReq := <-actualClientRequestCh
-			assert.Equal(t, "exit", exitReq)
+			assert.Equal(t, "exit\r\n\r\n", exitReq)
 
 			err = clientConn.WriteMessage(websocket.TextMessage, []byte("Content-Type: command/reply\r\nContent-Length: 0\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write exit reply to client")
@@ -117,13 +117,13 @@ func TestInboundWs_WhenClientAuthenButServerReplyAuthenFailed_ShouldCloseConnect
 			assert.NoError(t, err, "Cannot write auth/request to client")
 
 			authReq := <-actualClientRequestCh
-			assert.Equal(t, "auth ClueCon", authReq)
+			assert.Equal(t, "auth ClueCon\r\n\r\n", authReq)
 
 			err = clientConn.WriteMessage(websocket.TextMessage, []byte("Content-Type: command/reply\nReply-Text: -ERR invalid\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write auth failed to client")
 
 			exitReq := <-actualClientRequestCh
-			assert.Equal(t, "exit", exitReq)
+			assert.Equal(t, "exit\r\n\r\n", exitReq)
 
 			err = clientConn.WriteMessage(websocket.TextMessage, []byte("Content-Type: command/reply\r\nContent-Length: 0\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write exit reply to client")
@@ -162,13 +162,13 @@ func TestInboundWs_WhenClientAuthenButServerReplyAuthenOk_ShouldEstablishedConne
 			assert.NoError(t, err, "Cannot write auth/request to client")
 
 			authReq := <-actualClientRequestCh
-			assert.Equal(t, "auth ClueCon", authReq)
+			assert.Equal(t, "auth ClueCon\r\n\r\n", authReq)
 
 			err = clientConn.WriteMessage(websocket.TextMessage, []byte("Content-Type: command/reply\nReply-Text: +OK accepted\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write auth ok to client")
 
 			enabledEventReq := <-actualClientRequestCh
-			assert.Equal(t, "event plain MESSAGE_QUERY", enabledEventReq)
+			assert.Equal(t, "event plain MESSAGE_QUERY\r\n\r\n", enabledEventReq)
 
 			err = clientConn.WriteMessage(websocket.TextMessage, []byte("Content-Type: command/reply\nReply-Text: +OK event listener enabled plain\r\n\r\n"))
 			assert.NoError(t, err, "Cannot write command reply to client")

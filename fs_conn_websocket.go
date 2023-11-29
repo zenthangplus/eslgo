@@ -45,12 +45,12 @@ func (c WebsocketConn) decodeMsg(msg []byte) (*RawResponse, error) {
 	if contentLength := header.Get("Content-Length"); len(contentLength) > 0 {
 		length, err := strconv.Atoi(contentLength)
 		if err != nil {
-			return response, err
+			return response, errors.WithMessagef(err, "invalid content length in header: %s", contentLength)
 		}
 		response.Body = make([]byte, length)
 		_, err = io.ReadFull(reader, response.Body)
 		if err != nil {
-			return response, err
+			return response, errors.WithMessagef(err, "read msg body by content length failed: %d", length)
 		}
 	}
 	return response, nil
