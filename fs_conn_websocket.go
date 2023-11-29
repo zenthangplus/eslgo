@@ -26,7 +26,7 @@ func (c WebsocketConn) ReadResponse() (*RawResponse, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "read message error")
 	}
-	if messageType != websocket.TextMessage {
+	if messageType != websocket.TextMessage && messageType != websocket.BinaryMessage {
 		return nil, fmt.Errorf("message type %d not supported", messageType)
 	}
 	return c.decodeMsg(msg)
@@ -45,19 +45,19 @@ func (c WebsocketConn) decodeMsg(msg []byte) (*RawResponse, error) {
 	if contentLength := header.Get("Content-Length"); len(contentLength) > 0 {
 		length, err := strconv.Atoi(contentLength)
 		if err != nil {
-			return response, err
+			return response, errors.WithMessagef(err, "invalid content length in header: %s", contentLength)
 		}
 		response.Body = make([]byte, length)
 		_, err = io.ReadFull(reader, response.Body)
 		if err != nil {
-			return response, err
+			return response, errors.WithMessagef(err, "read msg body by content length failed: %d", length)
 		}
 	}
 	return response, nil
 }
 
 func (c WebsocketConn) Write(data string) error {
-	return c.conn.WriteMessage(websocket.TextMessage, []byte(data))
+	return c.conn.WriteMessage(websocket.TextMessage, []byte(data+EndOfMessage))
 }
 
 func (c WebsocketConn) SetWriteDeadline(t time.Time) error {
