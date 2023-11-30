@@ -16,7 +16,7 @@ import (
 
 var testNoopHandlerConnection = func(ctx context.Context, conn *Conn, response *RawResponse) {}
 
-func testCreateWsServer(handler OutboundHandler) (server *httptest.Server, wsUrl string) {
+func testCreateWsServer(handler OutboundHandler, requestId string) (server *httptest.Server, wsUrl string) {
 	opts := OutboundOptions{
 		Options: Options{
 			Context:     context.Background(),
@@ -28,14 +28,14 @@ func testCreateWsServer(handler OutboundHandler) (server *httptest.Server, wsUrl
 		ConnectionDelay: 25 * time.Millisecond,
 	}
 	muxHandler := http.NewServeMux()
-	muxHandler.HandleFunc("/ws", opts.wsHandler(handler))
+	muxHandler.HandleFunc("/ws/", opts.wsHandler(handler))
 	server = httptest.NewServer(muxHandler)
-	wsUrl = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws"
+	wsUrl = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/" + requestId
 	return
 }
 
 func TestOutboundWS_WhenServerSendConnectCmdButClientNotReply_ShouldCloseConnection(t *testing.T) {
-	server, wsUrl := testCreateWsServer(testNoopHandlerConnection)
+	server, wsUrl := testCreateWsServer(testNoopHandlerConnection, "")
 	defer server.Close()
 	wsClient, _, err := websocket.DefaultDialer.Dial(wsUrl, nil)
 	require.NoErrorf(t, err, "could not open a ws connection on %s", wsUrl)
@@ -57,7 +57,7 @@ func TestOutboundWS_WhenServerSendConnectCmdButClientNotReply_ShouldCloseConnect
 }
 
 func TestOutboundWS_WhenServerSendConnectCmdAndClientReplyNotCorrectFormat_ShouldCloseConnection(t *testing.T) {
-	server, wsUrl := testCreateWsServer(testNoopHandlerConnection)
+	server, wsUrl := testCreateWsServer(testNoopHandlerConnection, "")
 	defer server.Close()
 	wsClient, _, err := websocket.DefaultDialer.Dial(wsUrl, nil)
 	require.NoErrorf(t, err, "could not open a ws connection on %s", wsUrl)
@@ -83,7 +83,7 @@ func TestOutboundWS_WhenServerSendConnectCmdAndClientReplyNotCorrectFormat_Shoul
 }
 
 func TestOutboundWS_WhenServerSendConnectCmdAndClientReplyCorrectFormat_ShouldAcceptConnection(t *testing.T) {
-	server, wsUrl := testCreateWsServer(testNoopHandlerConnection)
+	server, wsUrl := testCreateWsServer(testNoopHandlerConnection, "")
 	defer server.Close()
 	wsClient, _, err := websocket.DefaultDialer.Dial(wsUrl, nil)
 	require.NoErrorf(t, err, "could not open a ws connection on %s", wsUrl)
@@ -119,7 +119,7 @@ func TestOutboundWS_GivenServerClientConnected_WhenSendEvent_ShouldTriggerHandle
 			receivingEvent <- event
 		})
 	}
-	server, wsUrl := testCreateWsServer(handleConnection)
+	server, wsUrl := testCreateWsServer(handleConnection, "")
 	defer server.Close()
 	wsClient, _, err := websocket.DefaultDialer.Dial(wsUrl, nil)
 	require.NoErrorf(t, err, "could not open a ws connection on %s", wsUrl)
@@ -173,11 +173,9 @@ func TestOutboundWS_GivenClientWithRequestId_WhenServerSendConnectCmd_ShouldRetu
 		log.Printf("Got connection for call %s, response: %#v", callId, response)
 		receivingRequestId <- response.GetHeader(HeaderRequestId)
 	}
-	server, wsUrl := testCreateWsServer(handleConnection)
+	server, wsUrl := testCreateWsServer(handleConnection, "request-id-1")
 	defer server.Close()
-	wsClient, _, err := websocket.DefaultDialer.Dial(wsUrl, http.Header{
-		HeaderRequestId: []string{"request-id-1"},
-	})
+	wsClient, _, err := websocket.DefaultDialer.Dial(wsUrl, nil)
 	require.NoErrorf(t, err, "could not open a ws connection on %s", wsUrl)
 	defer wsClient.Close()
 
