@@ -311,7 +311,7 @@ func (c *Conn) doMessage() error {
 	return nil
 }
 
-func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration) {
+func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectTimeout time.Duration, customHeaders map[string]string) {
 	ctx, cancel := context.WithTimeout(c.runningContext, connectTimeout)
 	response, err := c.SendCommand(ctx, command.Connect{})
 	cancel()
@@ -320,6 +320,15 @@ func (c *Conn) outboundHandle(handler OutboundHandler, connectionDelay, connectT
 		// Try closing cleanly first
 		c.Close() // Not ExitAndClose since this error connection is most likely from communication failure
 		return
+	}
+	if customHeaders != nil {
+		for k, v := range customHeaders {
+			if _, exists := response.Headers[k]; exists {
+				response.Headers.Add(k, v)
+			} else {
+				response.Headers.Set(k, v)
+			}
+		}
 	}
 	handler(c.runningContext, c, response)
 	// XXX This is ugly, the issue with short lived async sockets on our end is if they complete too fast we can actually

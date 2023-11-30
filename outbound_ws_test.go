@@ -165,3 +165,38 @@ answered`))
 		assert.Equal(t, "test-header1", event.GetHeader("Test-Header"))
 	}
 }
+
+func TestOutboundWS_GivenClientWithRequestId_WhenServerSendConnectCmd_ShouldReturnRequestIdToHandler(t *testing.T) {
+	receivingRequestId := make(chan string)
+	handleConnection := func(ctx context.Context, conn *Conn, response *RawResponse) {
+		callId := response.GetHeader("Unique-Id")
+		log.Printf("Got connection for call %s, response: %#v", callId, response)
+		receivingRequestId <- response.GetHeader(HeaderRequestId)
+	}
+	server, wsUrl := testCreateWsServer(handleConnection)
+	defer server.Close()
+	wsClient, _, err := websocket.DefaultDialer.Dial(wsUrl, http.Header{
+		HeaderRequestId: []string{"request-id-1"},
+	})
+	require.NoErrorf(t, err, "could not open a ws connection on %s", wsUrl)
+	defer wsClient.Close()
+
+	// Wait for server send connect command
+	time.Sleep(100 * time.Millisecond)
+	messageType, payload, err := wsClient.ReadMessage()
+	require.NoError(t, err)
+	assert.Equal(t, websocket.TextMessage, messageType)
+	assert.Equal(t, "connect\r\n\r\n", string(payload))
+
+	// Send connected message
+	err = wsClient.WriteMessage(websocket.TextMessage, []byte("Content-Type: api/response\r\nContent-Length: 9\r\nUnique-Id: call-1\r\n\r\nconnected\r\n\r\n"))
+	require.NoError(t, err)
+
+	// Wait for handler is trigger
+	select {
+	case <-time.After(200 * time.Millisecond):
+		require.FailNow(t, "Timeout when waiting for receiving request id")
+	case reqId := <-receivingRequestId:
+		require.Equal(t, "request-id-1", reqId)
+	}
+}
