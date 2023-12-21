@@ -17,8 +17,11 @@ import (
 	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
+
+const HeaderRequestId = "X-Request-ID"
 
 type OutboundHandler func(ctx context.Context, conn *Conn, connectResponse *RawResponse)
 
@@ -80,7 +83,7 @@ func (opts OutboundOptions) serveTcp(listener net.Listener, handler OutboundHand
 		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
 		go conn.dummyLoop()
 		// Does not call the handler directly to ensure closing cleanly
-		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
+		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout, nil)
 	}
 
 	opts.Logger.Info("Outbound server shutting down")
@@ -91,7 +94,7 @@ func (opts OutboundOptions) serveTcp(listener net.Listener, handler OutboundHand
 func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHandler) error {
 	opts.Logger.Info("Listening for new ESL Websocket connections on %s", address)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", opts.wsHandler(handler))
+	mux.HandleFunc("/ws/", opts.wsHandler(handler))
 	server := &http.Server{
 		Addr:              address,
 		ReadHeaderTimeout: 3 * time.Second,
@@ -113,11 +116,16 @@ func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.Respo
 			return
 		}
 		//defer ws.Close()
+		headers := make(map[string]string)
+		requestId := strings.Trim(strings.TrimPrefix(r.URL.Path, "/ws"), "/")
+		if len(requestId) > 0 {
+			headers[HeaderRequestId] = requestId
+		}
 		c := NewWebsocketConn(ws)
 		conn := newConnection(c, true, opts.Options)
-		conn.logger.Info("New outbound connection from %s", c.RemoteAddr().String())
+		conn.logger.Info("New outbound connection from %s, request id: %s", c.RemoteAddr().String(), requestId)
 		go conn.dummyLoop()
 		// Does not call the handler directly to ensure closing cleanly
-		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout)
+		go conn.outboundHandle(handler, opts.ConnectionDelay, opts.ConnectTimeout, headers)
 	}
 }
