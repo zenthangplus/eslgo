@@ -94,7 +94,7 @@ func (opts OutboundOptions) serveTcp(listener net.Listener, handler OutboundHand
 func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHandler) error {
 	opts.Logger.Info("Listening for new ESL Websocket connections on %s", address)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws/", opts.wsHandler(handler))
+	mux.HandleFunc("/ws/", opts.HandleOutboundWs(handler))
 	server := &http.Server{
 		Addr:              address,
 		ReadHeaderTimeout: 3 * time.Second,
@@ -103,7 +103,7 @@ func (opts OutboundOptions) ListenAndServeWs(address string, handler OutboundHan
 	return server.ListenAndServe()
 }
 
-func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.ResponseWriter, r *http.Request) {
+func (opts OutboundOptions) HandleOutboundWs(handler OutboundHandler) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		upgrader := &websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -115,9 +115,14 @@ func (opts OutboundOptions) wsHandler(handler OutboundHandler) func(w http.Respo
 			opts.Logger.Error("Upgrade ws connection error: %s", err)
 			return
 		}
-		//defer ws.Close()
-		headers := make(map[string]string)
 		requestId := strings.Trim(strings.TrimPrefix(r.URL.Path, "/ws"), "/")
+		opts.HandleOutboundWsConn(handler, requestId)(ws)
+	}
+}
+
+func (opts OutboundOptions) HandleOutboundWsConn(handler OutboundHandler, requestId string) func(ws *websocket.Conn) {
+	return func(ws *websocket.Conn) {
+		headers := make(map[string]string)
 		if len(requestId) > 0 {
 			headers[HeaderRequestId] = requestId
 		}

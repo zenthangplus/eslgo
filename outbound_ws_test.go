@@ -28,7 +28,7 @@ func testCreateWsServer(handler OutboundHandler, requestId string) (server *http
 		ConnectionDelay: 25 * time.Millisecond,
 	}
 	muxHandler := http.NewServeMux()
-	muxHandler.HandleFunc("/ws/", opts.wsHandler(handler))
+	muxHandler.HandleFunc("/ws/", opts.HandleOutboundWs(handler))
 	server = httptest.NewServer(muxHandler)
 	wsUrl = "ws" + strings.TrimPrefix(server.URL, "http") + "/ws/" + requestId
 	return
